@@ -5,6 +5,9 @@ services:
     plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: python main.py
+    autoDeploy: true
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.3
+      - key: DISCORD_TOKEN
+        sync: false
