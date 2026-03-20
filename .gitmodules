@@ -1,0 +1,3 @@
+[submodule "Open-Router-cake"]
+	path = Open-Router-cake
+	url = git@github.com:Tomasz-Gziut/Open-Router-cake.git
