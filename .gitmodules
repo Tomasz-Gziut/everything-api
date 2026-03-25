@@ -1,3 +1,6 @@
 [submodule "Open-Router-cake"]
 	path = Open-Router-cake
 	url = git@github.com:Tomasz-Gziut/Open-Router-cake.git
+[submodule "heartbeat"]
+	path = heartbeat
+	url = git@github.com:Tomasz-Gziut/heartbeat.git
