@@ -99,6 +99,11 @@ def _read_submodule_paths() -> list[Path]:
     return paths
 
 
+def _submodule_python(subdir: Path) -> str:
+    venv_python = subdir / ".venv" / "bin" / "python"
+    return str(venv_python) if venv_python.exists() else sys.executable
+
+
 def _detect_entry(subdir: Path) -> str | None:
     """Return 'uvicorn:main:app', 'uvicorn:app:app', 'module', or None."""
     if (subdir / "main.py").exists():
@@ -150,7 +155,7 @@ async def startup():
             port = next_port
             next_port += 1
             proc = await asyncio.create_subprocess_exec(
-                sys.executable, "-m", "uvicorn", f"{module}:{attr}",
+                _submodule_python(subdir), "-m", "uvicorn", f"{module}:{attr}",
                 "--host", "0.0.0.0", "--port", str(port),
                 cwd=str(subdir),
                 env=submodule_env(subdir),
@@ -164,7 +169,7 @@ async def startup():
     # Second pass: start module-style services (e.g. heartbeat) with all known ports
     for subdir in module_services:
         proc = await asyncio.create_subprocess_exec(
-            sys.executable, "-m", subdir.name,
+            _submodule_python(subdir), "-m", subdir.name,
             cwd=str(subdir),
             env=submodule_env(subdir, {
                 "HEARTBEAT_PORTS": ",".join(str(p) for p in api_ports),
