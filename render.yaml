@@ -11,3 +11,5 @@ services:
         value: 3.12.3
       - key: DISCORD_TOKEN
         sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false

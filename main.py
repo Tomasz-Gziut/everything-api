@@ -2,7 +2,9 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 import os
-from dotenv import load_dotenv
+import sys
+from pathlib import Path
+from dotenv import load_dotenv, dotenv_values
 from fastapi import FastAPI
 import asyncio
 
@@ -83,11 +85,61 @@ async def create_category_with_channel(
 # ================== FASTAPI ==================
 app = FastAPI()
 
+_subprocesses: list[asyncio.subprocess.Process] = []
+BASE_DIR = Path(__file__).parent
+
 @app.get("/")
 async def home():
     return {"status": "Bot działa!"}
 
-# ====== START BOT ======
+# ====== START BOT + SUBMODULES ======
 @app.on_event("startup")
-async def start_bot():
+async def startup():
     asyncio.create_task(bot.start(TOKEN))
+
+    def submodule_env(subdir: Path, extra: dict = {}) -> dict:
+        """Merge os.environ + submodule's .env file + any extra overrides."""
+        env = {**os.environ}
+        dot_env = subdir / ".env"
+        if dot_env.exists():
+            env.update(dotenv_values(dot_env))
+        env.update(extra)
+        return env
+
+    # Open-Router-cake on port 8001
+    open_router_dir = BASE_DIR / "Open-Router-cake"
+    if (open_router_dir / "main.py").exists():
+        proc = await asyncio.create_subprocess_exec(
+            sys.executable, "-m", "uvicorn", "main:app",
+            "--host", "0.0.0.0", "--port", "8001",
+            cwd=str(open_router_dir),
+            env=submodule_env(open_router_dir),
+        )
+        _subprocesses.append(proc)
+        print(f"[submodule] Open-Router-cake started on port 8001 (pid {proc.pid})")
+    else:
+        print("[submodule] Open-Router-cake not found, skipping")
+
+    # heartbeat on port 8888, pinging main + open-router-cake
+    heartbeat_dir = BASE_DIR / "heartbeat"
+    if (heartbeat_dir / "__main__.py").exists():
+        proc = await asyncio.create_subprocess_exec(
+            sys.executable, "-m", "heartbeat",
+            cwd=str(heartbeat_dir),
+            env=submodule_env(heartbeat_dir, {
+                "HEARTBEAT_PORTS": "8000,8001",
+                "HEARTBEAT_PORT": "8888",
+            }),
+        )
+        _subprocesses.append(proc)
+        print(f"[submodule] heartbeat started on port 8888 (pid {proc.pid})")
+    else:
+        print("[submodule] heartbeat not found, skipping")
+
+@app.on_event("shutdown")
+async def shutdown():
+    for proc in _subprocesses:
+        proc.terminate()
+    if _subprocesses:
+        await asyncio.gather(*[proc.wait() for proc in _subprocesses])
+        print(f"[submodule] {len(_subprocesses)} submodule(s) stopped")
